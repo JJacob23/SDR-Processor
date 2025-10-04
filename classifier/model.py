@@ -17,6 +17,8 @@ Each 10s chunk will yield about 312.5 frames (10000ms / 32ms)
 So each input tensor will be (1, 64, 313) after mel spectrogram and log scaling
 '''
 DATA_DIR = "data/chunks"
+SAVE_DIR = "models"
+MODEL_PATH = os.path.join(SAVE_DIR, "current_model.pt")
 SAMPLE_RATE = 16000
 N_MELS = 64
 WINDOW_SIZE = 1024
@@ -182,11 +184,27 @@ def main():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     train_loader, val_loader, test_loader = make_dataloaders()
 
+    #Evaluate old model on current test set data
     model = AudioCNN()
+    model.load_state_dict(torch.load(MODEL_PATH, map_location=device))
+    model.to(device)
+    model.eval()
+    prev_accuracy = evaluate(model, test_loader, device)
+    print(f"prev acc = {prev_accuracy}")
+    
+    #Now make a new model on all current sets
     model = train(model, train_loader, val_loader, device, epochs=10, lr=1e-3)
-    test_acc = evaluate(model, test_loader, device)
-    print(f"Final Test Accuracy: {test_acc:.3f}")
+    new_accuracy = evaluate(model, test_loader, device)
 
+
+    # Compare and replace if improved
+    if new_accuracy > prev_accuracy:
+        torch.save(model.state_dict(), MODEL_PATH)
+        print("Accuracy improved from {prev_accuracy} to {new_accuracy}")
+        print("Saving over old model.")
+    else:
+        print("Accuracy did NOT improve from {prev_accuracy} to {new_accuracy}")
+        print("Keeping old model.")
 
 
 if __name__ == "__main__":
