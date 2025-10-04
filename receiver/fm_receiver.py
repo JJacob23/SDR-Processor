@@ -38,7 +38,7 @@ class FMRx(gr.top_block):
     '''
     returns a new Rx with configured gnuradio chain
     '''
-    def __init__(self, freq, gain, ppm=0.0, outfile=None, play_audio=True, auto_fine=True):
+    def __init__(self, freq, gain, ppm=0.0, outfile=None, play_audio=True, auto_fine=False):
         gr.top_block.__init__(self)
 
         #Correct for ppm
