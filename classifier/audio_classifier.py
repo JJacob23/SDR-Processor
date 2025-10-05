@@ -1,11 +1,22 @@
+from __future__ import annotations
 
-import torch
-import os
-import sys
+import asyncio
 import json
+from typing import Optional, Tuple
+import numpy as np
 import redis.asyncio as aioredis
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))) #Run as module later, but this lets me test the file directly for now.
-from utils.constants import MODEL_PATH, SAMPLE_RATE, N_MELS, WINDOW_SIZE, HOP_SIZE, CHUNK_DURATION_S, INVERSE_LABELS
+import torch
+from utils.constants import (
+    CHUNK_DURATION_S,
+    HOP_SIZE,
+    INVERSE_LABELS,
+    N_MELS,
+    SAMPLE_RATE,
+    WINDOW_SIZE,
+    CHANNEL_AUDIO,
+    CHANNEL_STATE,
+)
+from utils.config import REDIS_URL
 from utils.audio_utils import (
     ensure_tensor,
     mono,
@@ -13,41 +24,44 @@ from utils.audio_utils import (
     waveform_to_mel_spectrogram,
 )
 from classifier.model import AudioCNN
-import asyncio
-import numpy as np
+from .model import AudioCNN
 
 class Classifier:
     """
-    Pulls small waveform batches from an redis broadcast and runs classification
-    over 10s windows.
+    Pulls small waveform batches from an redis broadcast, runs classification
+    over 10s windows, and publishes classifiation.
     """
-    def __init__(self, redis_url="redis://localhost:6379", audio_channel="audio_stream", state_channel="state_stream", device=None):
+    def __init__(
+        self,
+        redis_url: str = REDIS_URL,
+        audio_channel: str = CHANNEL_AUDIO,
+        state_channel: str = CHANNEL_STATE,
+        device: Optional[torch.device] = None,
+    ) -> None:
         self.redis_url = redis_url
         self.audio_channel = audio_channel
         self.state_channel = state_channel
-        self.redis = None
-        self.pubsub = None
+        self.redis: Optional[aioredis.Redis] = None
+        self.pubsub: Optional[aioredis.client.PubSub] = None
         self.buffer = np.zeros(0, dtype=np.float32)
         self.chunk_samples = int(SAMPLE_RATE * CHUNK_DURATION_S)
         self.device = device or torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
         self.model = AudioCNN()
-        self.model.load_state_dict(torch.load(MODEL_PATH, map_location=self.device))
         self.model.to(self.device)
         self.model.eval()
-        print("[Classifier] Model Ready...")
+        print("[Classifier] Model ready…")
 
-    async def connect(self):
+    async def connect(self) -> None:
+        """Connect to Redis and subscribe to the audio channel."""
         self.redis = aioredis.from_url(self.redis_url)
         self.pubsub = self.redis.pubsub()
         await self.pubsub.subscribe(self.audio_channel)
-        print(f"[Classifier] Subscribed to channel {self.audio_channel}")
+        print(f"[Classifier] Subscribed to channel '{self.audio_channel}'")
 
-    async def run(self):
-        """
-        Continuously consume float batches from redis and classify when enough accumulates.
-        """
+    async def run(self) -> None:
+        """Consume float32 batches and classify on full 10 s buffers."""
         await self.connect()
+        assert self.pubsub is not None
         try:
             async for message in self.pubsub.listen():
                 if message["type"] != "message":
@@ -56,26 +70,24 @@ class Classifier:
                 batch = np.frombuffer(message["data"], dtype=np.float32)
                 self.buffer = np.concatenate((self.buffer, batch))
 
-                if len(self.buffer) > self.chunk_samples:
-                    self.buffer = self.buffer[-self.chunk_samples:]
+                # Keep only the most recent 10 s
+                if self.buffer.size > self.chunk_samples:
+                    self.buffer = self.buffer[-self.chunk_samples :]
 
-                if len(self.buffer) == self.chunk_samples:
+                if self.buffer.size == self.chunk_samples:
                     pred, probs = self.classify(self.buffer)
                     label = INVERSE_LABELS[pred]
-                    print(f"[Classifier] {label}  (p={probs})")
-                    payload = json.dumps({
-                        "label":label,
-                        "probs": probs.tolist(),
-                    })
-                    await self.redis.publish(self.state_channel,payload)
+                    print(f"[Classifier] {label} (p={probs})")
+                    payload = json.dumps({"label": label, "probs": probs.tolist()})
+                    assert self.redis is not None
+                    await self.redis.publish(self.state_channel, payload)
                     self.buffer = np.zeros(0, dtype=np.float32)
-
         except asyncio.CancelledError:
-            print("[Classifier] Stopping Classifier...")
+            print("[Classifier] Stopping classifier…")
         finally:
-            if self.pubsub:
+            if self.pubsub is not None:
                 await self.pubsub.unsubscribe(self.audio_channel)
-            if self.redis:
+            if self.redis is not None:
                 await self.redis.close()
 
 

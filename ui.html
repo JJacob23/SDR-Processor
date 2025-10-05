@@ -36,8 +36,8 @@
     const audioSocket = new WebSocket("ws://localhost:8000/ws/audio");
     audioSocket.onopen = () => { audioStatusEl.textContent = "Connected"; };
     audioSocket.onclose = () => { audioStatusEl.textContent = "Disconnected"; };
-    
     audioSocket.binaryType = "arraybuffer";
+    
     let lastTime = performance.now();
     let intervals = [];
     audioSocket.onmessage = (event) => {
