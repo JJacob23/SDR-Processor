@@ -14,6 +14,7 @@ DATA_DIR = "data/chunks"
 SAVE_DIR = "models"
 MODEL_PATH = os.path.join(SAVE_DIR, "current_model.pt")
 SAMPLE_RATE = 16000
+RAW_SAMPLE_RATE = 48000
 N_MELS = 64
 WINDOW_SIZE = 1024
 HOP_SIZE = 512
@@ -23,6 +24,9 @@ CHUNK_DURATION_S = 10
 
 #Chunk based classifier just watches this dir for the current radio sample.
 LIVE_DIR = "data/live"
+
+#async queue batch size
+BATCH_MS = 100
 
 
 LABELS = {"song": 0, "ad": 1}
