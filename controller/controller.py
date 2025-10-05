@@ -6,8 +6,6 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 import sys, os
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))) #Run as module later, but this lets me test the file directly for now.
-from receiver.fm_queue_streamer import QueueStreamer
-from classifier.queue_classifier import QueueClassifier
 from utils.constants import FREQ,GAIN,BATCH_MS,INVERSE_LABELS,REDIS_URL
 
 app = FastAPI()

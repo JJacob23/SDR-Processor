@@ -16,7 +16,7 @@ from classifier.model import AudioCNN
 import asyncio
 import numpy as np
 
-class QueueClassifier:
+class Classifier:
     """
     Pulls small waveform batches from an redis broadcast and runs classification
     over 10s windows.

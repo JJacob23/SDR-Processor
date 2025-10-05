@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <title>SDR Live Stream UI</title>
   <style>
-    body { font-family: monospace; background: black; color: green; padding: 1rem; }
+    body { font-family: monospace; background: black; color: Lime; padding: 1rem; }
     #log { white-space: pre-line; margin-top: 1rem; }
   </style>
 </head>
@@ -23,7 +23,6 @@
     const logEl = document.getElementById('log');
     const lagEl = document.getElementById('lag');
 
-    // ---- Connect to classifier stream ----
     const stateSocket = new WebSocket("ws://localhost:8000/ws/state");
     stateSocket.onopen = () => { stateStatusEl.textContent = "Connected"; };
     stateSocket.onclose = () => { stateStatusEl.textContent = "Disconnected"; };

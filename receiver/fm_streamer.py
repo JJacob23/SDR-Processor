@@ -9,9 +9,9 @@ from utils.constants import RAW_SAMPLE_RATE, BATCH_MS
 
 from receiver.fm_receiver import FMRx
 
-class QueueStreamer:
+class Streamer:
     """
-    Streams 100ms batches of demodulated FM audio samples into an async queue.
+    Streams 100ms batches of demodulated FM audio samples into an redis broadcast.
     """
 
     def __init__(self, freq, gain, play_audio=False, redis_url="redis://localhost:6379", channel="audio_stream"):
