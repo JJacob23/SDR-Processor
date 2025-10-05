@@ -1,12 +1,12 @@
 import asyncio
 import numpy as np
 from gnuradio import gr, blocks
-from fm_receiver import FMRx
 import sys, os
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))) #Run as module later, but this lets me test the file directly for now.
 from utils.constants import RAW_SAMPLE_RATE, BATCH_MS
 
+from receiver.fm_receiver import FMRx
 
 class QueueStreamer:
     """

@@ -4,7 +4,7 @@ from classifier.queue_classifier import QueueClassifier
 
 
 async def main():
-    streamer = QueueStreamer(freq=98.7e6, gain=25, play_audio=True)
+    streamer = QueueStreamer(freq=100.304e6, gain=25, play_audio=True)
     classifier = QueueClassifier(streamer.get_queue())
 
     streamer_task = asyncio.create_task(streamer.start())
