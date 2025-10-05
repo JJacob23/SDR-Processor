@@ -4,7 +4,7 @@ from pathlib import Path
 BASE_DIR: Path = Path(__file__).resolve().parent.parent
 DATA_DIR: Path = BASE_DIR / "data" / "chunks"
 SAVE_DIR: Path = BASE_DIR / "models"
-MODEL_PATH: Path = SAVE_DIR / "current_model.pt"
+MODEL_PATH: Path = SAVE_DIR / "cnn_current_model.pt"
 
 
 '''

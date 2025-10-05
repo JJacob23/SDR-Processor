@@ -179,10 +179,10 @@ def main() -> None:
     # Compare and replace if improved
     if new_accuracy > prev_accuracy:
         torch.save(model.state_dict(), MODEL_PATH)
-        print("Accuracy improved from {prev_accuracy} to {new_accuracy}")
+        print(f"Accuracy improved from {prev_accuracy} to {new_accuracy}")
         print("Saving over old model.")
     else:
-        print("Accuracy did NOT improve from {prev_accuracy} to {new_accuracy}")
+        print(f"Accuracy did NOT improve from {prev_accuracy} to {new_accuracy}")
         print("Keeping old model.")
 
 

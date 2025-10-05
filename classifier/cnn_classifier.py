@@ -15,6 +15,7 @@ from utils.constants import (
     WINDOW_SIZE,
     CHANNEL_AUDIO,
     CHANNEL_CLASSIFIER,
+    MODEL_PATH
 )
 from utils.config import REDIS_URL
 from utils.audio_utils import (
@@ -23,7 +24,7 @@ from utils.audio_utils import (
     normalize_duration,
     waveform_to_mel_spectrogram,
 )
-from .model import AudioCNN
+from .cnn_model import AudioCNN
 
 class Classifier:
     """
@@ -34,18 +35,23 @@ class Classifier:
         self,
         redis_url: str = REDIS_URL,
         audio_channel: str = CHANNEL_AUDIO,
-        state_channel: str = CHANNEL_CLASSIFIER,
+        classifier_channel: str = CHANNEL_CLASSIFIER,
         device: Optional[torch.device] = None,
     ) -> None:
         self.redis_url = redis_url
         self.audio_channel = audio_channel
-        self.state_channel = state_channel
+        self.classifier_channel = classifier_channel
         self.redis: Optional[aioredis.Redis] = None
         self.pubsub: Optional[aioredis.client.PubSub] = None
         self.buffer = np.zeros(0, dtype=np.float32)
         self.chunk_samples = int(SAMPLE_RATE * CHUNK_DURATION_S)
         self.device = device or torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.model = AudioCNN()
+        if MODEL_PATH.exists():
+            self.model.load_state_dict(torch.load(MODEL_PATH, map_location=self.device))
+            print(f"[Classifier] Loaded model weights from {MODEL_PATH}")
+        else:
+            print(f"[Classifier] WARNING: No model file found at {MODEL_PATH}, using random weights")
         self.model.to(self.device)
         self.model.eval()
         print("[Classifier] Model ready…")
@@ -79,7 +85,7 @@ class Classifier:
                     print(f"[Classifier] {label} (p={probs})")
                     payload = json.dumps({"label": label, "probs": probs.tolist()})
                     assert self.redis is not None
-                    await self.redis.publish(self.state_channel, payload)
+                    await self.redis.publish(self.classifier_channel, payload)
                     self.buffer = np.zeros(0, dtype=np.float32)
         except asyncio.CancelledError:
             print("[Classifier] Stopping classifier…")
