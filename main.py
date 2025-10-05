@@ -1,16 +1,18 @@
+from __future__ import annotations
 import asyncio
+from classifier.audio_classifier import Classifier
 from receiver.fm_streamer import Streamer
-from classifier.classifier import Classifier
-from utils.constants import FREQ
+from utils.config import DEFAULT_FREQ, DEFAULT_GAIN
 
-async def main():
-    streamer = Streamer(freq=FREQ, gain=25, play_audio=True)
+async def main() -> None:
+    streamer = Streamer(freq=DEFAULT_FREQ, gain=float(DEFAULT_GAIN), play_audio=True)
     classifier = Classifier()
+
     streamer_task = asyncio.create_task(streamer.start())
-    classifier_connect_task = asyncio.create_task(classifier.connect())
-    classifier_run_task = asyncio.create_task(classifier.run())
+    classifier_task = asyncio.create_task(classifier.run())
+
     try:
-        await asyncio.gather(streamer_task, classifier_connect_task, classifier_run_task)
+        await asyncio.gather(streamer_task,  classifier_task)
     except KeyboardInterrupt:
         print("\n[Main] KeyboardInterrupt, shutting down...")
         await streamer.stop()
