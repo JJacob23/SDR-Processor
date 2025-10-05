@@ -10,7 +10,7 @@
 </head>
 <body>
   <h2>SDR Live Classifier</h2>
-  <p>State Status: <span id="state-status">Connecting...</span></p>
+  <p>Classifier Status: <span id="classifier-status">Connecting...</span></p>
   <p>Current label: <span id="label">--</span></p>
   <p>Audio Status: <span id="audio-status">Connecting...</span></p>
   <p>Lag (target 100ms): <span id="lag">--</span></p>
@@ -18,16 +18,16 @@
 
   <script>
     const labelEl = document.getElementById('label');
-    const stateStatusEl = document.getElementById('state-status');
+    const classifierStatusEl = document.getElementById('classifier-status');
     const audioStatusEl = document.getElementById('audio-status');
     const logEl = document.getElementById('log');
     const lagEl = document.getElementById('lag');
 
-    const stateSocket = new WebSocket("ws://localhost:8000/ws/state");
-    stateSocket.onopen = () => { stateStatusEl.textContent = "Connected"; };
-    stateSocket.onclose = () => { stateStatusEl.textContent = "Disconnected"; };
+    const classifierSocket = new WebSocket("ws://localhost:8000/ws/classifier");
+    classifierSocket.onopen = () => { classifierStatusEl.textContent = "Connected"; };
+    classifierSocket.onclose = () => { classifierStatusEl.textContent = "Disconnected"; };
 
-    stateSocket.onmessage = (event) => {
+    classifierSocket.onmessage = (event) => {
       const msg = JSON.parse(event.data);
       labelEl.textContent = msg.label + "  (p=" + msg.probs.map(p => p.toFixed(3)).join(", ") + ")";
       logEl.textContent = `[${new Date().toLocaleTimeString()}] ${msg.label}\n` + logEl.textContent;
@@ -37,7 +37,7 @@
     audioSocket.onopen = () => { audioStatusEl.textContent = "Connected"; };
     audioSocket.onclose = () => { audioStatusEl.textContent = "Disconnected"; };
     audioSocket.binaryType = "arraybuffer";
-    
+
     let lastTime = performance.now();
     let intervals = [];
     audioSocket.onmessage = (event) => {
