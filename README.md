@@ -19,6 +19,7 @@ SDR-Processor combines a GNU Radio based FM receiver with a PyTorch classifier t
 2. Generate labeled 10 s chunks via classifier/data_parser.py (expects CSV labels in data/wav_labels).
 3. Train the CNN with classifier/model.py to refresh models/current_model.pt.
 4. Classify new chunks using classifier/chunk_classifier.py, which watches data/live and prints song/ad predictions.
+5. Websocket UI can be ran with uvicorn controller.controller:app --reload. Its currenty laggy
 
 ## Testing and Tuning
 - Quick sanity check an RTL-SDR tuning with:
@@ -27,7 +28,7 @@ SDR-Processor combines a GNU Radio based FM receiver with a PyTorch classifier t
   python receiver/fm_recorder.py [-h for options]
 
 ## Development Notes
-- The chunk based receiver/classifier are just proof of concept and will stutter every 10 seconds. Working on swapping to a stream based workflownow.
+- Lag reports on UI because classifier and audio streams sip from the same queue. Ill fix this later with a real broker.
 - Station quick references:
   - 98.700e6 -> WMZQ country (clear)
   - 101.1e6 -> DC variety (intermittent)

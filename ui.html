@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>SDR Live Stream UI</title>
+  <style>
+    body { font-family: monospace; background: black; color: green; padding: 1rem; }
+    #log { white-space: pre-line; margin-top: 1rem; }
+  </style>
+</head>
+<body>
+  <h2>SDR Live Classifier</h2>
+  <p>State Status: <span id="state-status">Connecting...</span></p>
+  <p>Current label: <span id="label">--</span></p>
+  <p>Audio Status: <span id="audio-status">Connecting...</span></p>
+  <p>Lag (target 100ms): <span id="lag">--</span></p>
+  <div id="log"></div>
+
+  <script>
+    const labelEl = document.getElementById('label');
+    const stateStatusEl = document.getElementById('state-status');
+    const audioStatusEl = document.getElementById('audio-status');
+    const logEl = document.getElementById('log');
+    const lagEl = document.getElementById('lag');
+
+    // ---- Connect to classifier stream ----
+    const stateSocket = new WebSocket("ws://localhost:8000/ws/state");
+    stateSocket.onopen = () => { stateStatusEl.textContent = "Connected"; };
+    stateSocket.onclose = () => { stateStatusEl.textContent = "Disconnected"; };
+
+    stateSocket.onmessage = (event) => {
+      const msg = JSON.parse(event.data);
+      labelEl.textContent = msg.label + "  (p=" + msg.probs.map(p => p.toFixed(3)).join(", ") + ")";
+      logEl.textContent = `[${new Date().toLocaleTimeString()}] ${msg.label}\n` + logEl.textContent;
+    };
+
+    const audioSocket = new WebSocket("ws://localhost:8000/ws/audio");
+    audioSocket.onopen = () => { audioStatusEl.textContent = "Connected"; };
+    audioSocket.onclose = () => { audioSetatusEl.textContent = "Disconnected"; };
+    
+    audioSocket.binaryType = "arraybuffer";
+    let lastTime = performance.now();
+    let intervals = [];
+    audioSocket.onmessage = (event) => {
+      const now = performance.now();
+      const diff = now - lastTime;
+      lastTime = now;
+      intervals.push(diff);
+      if (intervals.length > 100) intervals.shift(); // keep last 10 seconds of data
+      const avg = intervals.reduce((a, b) => a + b, 0) / intervals.length;
+      lagEl.textContent = `${avg.toFixed(1)} ms avg interval`;
+    };
+  </script>
+</body>
+</html>
+
