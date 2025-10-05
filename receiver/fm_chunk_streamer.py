@@ -2,7 +2,7 @@ import os, time, signal
 from gnuradio import gr,blocks
 from fm_receiver import FMRx 
 
-class StreamRecorder:
+class ChunkStreamer:
     '''
     Saves 10 seconds of data as a wav file for the classifier to pick up.
     This stutters on restart and is just a proof of concept untill queuing can be implemented
@@ -55,8 +55,8 @@ class StreamRecorder:
             self.record_chunk()
 
 def main():
-    rec = StreamRecorder(freq=100.304e6, gain=25, outdir="data/live", chunk_len=10, play_audio=True, )
-    rec.run()
+    cs = ChunkStreamer(freq=100.304e6, gain=25, outdir="data/live", chunk_len=10, play_audio=True, )
+    cs.run()
 
 if __name__ == "__main__":
     main()

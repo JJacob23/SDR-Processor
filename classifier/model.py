@@ -7,23 +7,10 @@ import torchaudio
 import random
 from torch.utils.data import Dataset, DataLoader, WeightedRandomSampler, random_split
 
-'''
-Parameter notes:
-Audio chunks from data_parser.py are 10s long wav files downsampled to 16kHz
-A window size of 1024 samples at 16kHz = 64ms per frame
-A hop size of 512 samples at 16kHz = 32ms overlap
-Using 64 mel bands should give a good frequency resolution, try 128 if needed
-Each 10s chunk will yield about 312.5 frames (10000ms / 32ms)
-So each input tensor will be (1, 64, 313) after mel spectrogram and log scaling
-'''
-DATA_DIR = "data/chunks"
-SAVE_DIR = "models"
-MODEL_PATH = os.path.join(SAVE_DIR, "current_model.pt")
-SAMPLE_RATE = 16000
-N_MELS = 64
-WINDOW_SIZE = 1024
-HOP_SIZE = 512
-
+import sys
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))) #Run as module later, but this lets me test the file directly for now.
+from utils.constants import DATA_DIR, MODEL_PATH, SAMPLE_RATE, N_MELS, WINDOW_SIZE, HOP_SIZE, CHUNK_DURATION_S, LABELS
+import utils.audio_utils as audio_utils
 
 class AudioDataset(Dataset):
     def __init__(self, data_dir=DATA_DIR):
@@ -31,44 +18,18 @@ class AudioDataset(Dataset):
         Load all the data in data_dir and label it based on its dir.
         '''
         self.samples = []
-        self.labels = {"song": 0, "ad": 1} 
-
         #Make tuples of every chunk path and its label.
-        for label in self.labels:
+        for label in LABELS:
             files = glob.glob(os.path.join(data_dir, label, "*.wav"))
             for f in files:
-                self.samples.append((f, self.labels[label]))
+                self.samples.append((f, LABELS[label]))
 
     def __len__(self):
         return len(self.samples)
 
     def __getitem__(self, idx):
         path, label = self.samples[idx]
-        waveform, sr = torchaudio.load(path)
-
-        # Make sure chunks match expected sample rate
-        if sr != SAMPLE_RATE:
-            waveform = torchaudio.functional.resample(waveform, sr, SAMPLE_RATE)
-
-        # Make sure audio is in mono
-        if waveform.shape[0] > 1:
-            waveform = waveform.mean(dim=0, keepdim=True)
-
-        # Take fft into WINDOW_SIZE frequency bins
-        # Push those into N_MELS bands
-        # Do this for ever HOP_SIZE for the entire chunk to build the spectrogram
-        # So the finished spectrogram is N_MELS high and (samples/HOP_SIZE) wide.
-        mel_spectrogram = torchaudio.transforms.MelSpectrogram(
-            sample_rate=SAMPLE_RATE,
-            n_fft=WINDOW_SIZE,
-            hop_length=HOP_SIZE,
-            n_mels=N_MELS
-        )(waveform)
-
-        # Power data becomes sparse when normalized.
-        # squash to decibels for more meaningful differences. 
-        mel_spectrogram = torchaudio.transforms.AmplitudeToDB()(mel_spectrogram)
-
+        mel_spectrogram = audio_utils.load_and_process_wav(path,SAMPLE_RATE,N_MELS,WINDOW_SIZE,HOP_SIZE,CHUNK_DURATION_S)
         return mel_spectrogram, label
 
 

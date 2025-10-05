@@ -66,7 +66,6 @@ class FMRx(gr.top_block):
         self.wbfm = analog.wfm_rcv(quad_rate=240e3, audio_decimation=5)
         #Fight hiss by pushing down high frequencies
         self.deemph = analog.fm_deemph(fs=48000, tau=75e-6)
-        #TODO: Consider graphing spectrum for using in CNN
 
         #Save audio to .wav file
         if outfile:
@@ -83,50 +82,3 @@ class FMRx(gr.top_block):
             self.connect(self.deemph, self.audio)
 
         self.connect(self.src, self.dcblock, self.wbfm, self.deemph)
-
-def main():
-    '''
-    Create and run the Rx using CLA
-    '''
-    parser = argparse.ArgumentParser(description="Simple FM Receiver with RTL-SDR + Scanner")
-    parser.add_argument("--freq", type=float, default=100.304e6,
-                        help="Requested frequency in Hz (default: 100.304e6)")
-    parser.add_argument("--gain", type=float, default=25,
-                        help="RF gain (default: 25)")
-    parser.add_argument("--ppm", type=float, default=0.0,
-                        help="PPM correction from rtl_test -p")
-    parser.add_argument("--outfile", type=str, default=None,
-                        help="Optional WAV output file")
-    parser.add_argument("--no-audio", action="store_true",
-                        help="Disable live audio playback")
-    parser.add_argument("--auto-fine", type=bool, default=False,
-                       help="Sweeps local frequencies by 200Hz steps to look for stronger signals")
-
-    args = parser.parse_args()
-
-    freq_cmd = args.freq
-    rx = FMRx(freq=freq_cmd,
-              gain=args.gain,
-              ppm=args.ppm,
-              outfile=args.outfile,
-              play_audio=not args.no_audio,
-              auto_fine=args.auto_fine)
-
-    hw_freq = rx.src.get_center_freq()
-    print(f"Requested {args.freq/1e6:.6f} MHz | HW tuned {hw_freq/1e6:.6f} MHz")
-    print(f"PPM={args.ppm:+.0f}, Gain={args.gain} dB")
-    if args.outfile:
-        print(f"Recording → {args.outfile}")
-    if not args.no_audio:
-        print("Playing live audio")
-    print("Press Ctrl+C to stop…")
-
-    try:
-        rx.run()
-    except KeyboardInterrupt:
-        print("\nStopped.")
-
-
-if __name__ == "__main__":
-    main()
-
