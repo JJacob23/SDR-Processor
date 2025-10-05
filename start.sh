@@ -2,9 +2,9 @@
 set -e
 
 echo "Starting SDR-Processor"
-echo "Activating Conda environment..."
-
-conda activate radio
+#Breaks when already activated
+#echo "Activating Conda environment..."
+#conda activate radio
 
 echo "Starting Redis Server..."
 if ! pgrep -x "redis-server" > /dev/null; then
