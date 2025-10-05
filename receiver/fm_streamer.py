@@ -73,6 +73,13 @@ class Streamer:
             if self.redis is not None:
                 await self.redis.close()
             print("[Streamer] Streamer stopped")
+    
+    async def tune(self, new_freq: float) -> None:
+        """Retune the SDR to a new center frequency."""
+        if self.rx:
+            print(f"[Streamer] tuning to {new_freq/1e6:.3f} MHz")
+            self.rx.src.set_center_freq(new_freq)
+            self.freq = new_freq
 
     async def stop(self) -> None:
         """Signal the streaming loop to stop."""
