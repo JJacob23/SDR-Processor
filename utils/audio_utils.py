@@ -67,7 +67,7 @@ def normalize_duration(waveform: torch.Tensor, sr: int, target_duration: float) 
 
 def waveform_to_mel_spectrogram(waveform: torch.Tensor, sr: int, n_mels: int, window_size: int, hop_size: int) -> torch.Tensor:
     """
-    Convert waveform → log-mel spectrogram tensor.
+    Convert waveform -> log-mel spectrogram tensor.
     Returns tensor shape [1, n_mels, time_frames].
     """
     # Take fft into WINDOW_SIZE frequency bins

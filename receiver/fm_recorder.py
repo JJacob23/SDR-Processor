@@ -33,10 +33,10 @@ def main():
     print(f"Requested {args.freq/1e6:.6f} MHz | Receiver tuned to {hw_freq/1e6:.6f} MHz")
     print(f"PPM={args.ppm:+.0f}, Gain={args.gain} dB")
     if args.outfile:
-        print(f"Recording → {args.outfile}")
-    if not args.no_audio:
+        print(f"Recording -> {args.outfile}")
+    if args.play_audio:
         print("Playing live audio")
-    print("Press Ctrl+C to stop…")
+    print("Press Ctrl+C to stop...")
 
     try:
         rx.run()

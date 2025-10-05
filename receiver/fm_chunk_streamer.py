@@ -31,7 +31,7 @@ class ChunkStreamer:
                                           blocks.wavfile_format_t.FORMAT_WAV,
                                           blocks.wavfile_subformat_t.FORMAT_PCM_16)
         if hasattr(self.rx, "wav_sink"):
-            self.rx.disconnect(self.rx.deemph, self.wav_sink)
+            self.rx.disconnect(self.rx.deemph, self.rx.wav_sink)
         self.rx.connect(self.rx.deemph, wav_sink)
 
         self.rx.start()

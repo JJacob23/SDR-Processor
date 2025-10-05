@@ -21,7 +21,7 @@ def measure_power(src, dwell=0.05):
 
 def fine_scan(src, base_freq, span=10e3, step=2e3, dwell=0.05):
     """
-    Sweep ±span (Hz) around base_freq in 'step' increments.
+    Sweep +/- span (Hz) around base_freq in 'step' increments.
     Return the offset (Hz) that gives max power.
     """
     offsets = np.arange(-span, span+step, step)
@@ -55,7 +55,7 @@ class FMRx(gr.top_block):
         if auto_fine:
             fine_off = fine_scan(self.src, freq_hw, span=10e3, step=2e3)
             freq_hw += fine_off
-            print(f"Fine-tuned by {fine_off:+.0f} Hz → {freq_hw/1e6:.6f} MHz")
+            print(f"Fine-tuned by {fine_off:+.0f} Hz -> {freq_hw/1e6:.6f} MHz")
 
         self.src.set_center_freq(freq_hw)
 
