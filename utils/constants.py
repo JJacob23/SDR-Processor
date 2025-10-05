@@ -32,6 +32,8 @@ BATCH_MS = 100
 LABELS = {"song": 0, "ad": 1}
 INVERSE_LABELS = {v: k for k, v in LABELS.items()}
 
+REDIS_URL="redis://localhost:6379"
+
 #Just for ease of prototyping
 GAIN=25
 FREQ=100.304e6

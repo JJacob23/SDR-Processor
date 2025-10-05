@@ -1,6 +1,7 @@
+import redis.asyncio as aioredis
 import asyncio
 import numpy as np
-from gnuradio import gr, blocks
+from gnuradio import blocks
 import sys, os
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))) #Run as module later, but this lets me test the file directly for now.
@@ -13,17 +14,21 @@ class QueueStreamer:
     Streams 100ms batches of demodulated FM audio samples into an async queue.
     """
 
-    def __init__(self, freq, gain, play_audio=False):
+    def __init__(self, freq, gain, play_audio=False, redis_url="redis://localhost:6379", channel="audio_stream"):
         self.freq = freq
         self.gain = gain
         self.play_audio = play_audio
-        self.queue = asyncio.Queue(maxsize=50)
         self.rx = None
         self.running = False
+        self.redis_url = redis_url
+        self.channel = channel
+        self.redis = None
+
 
     async def start(self):
         """Start the FM receiver and begin pushing audio batches."""
         self.running = True
+        self.redis = aioredis.from_url(self.redis_url, decode_responses=False)
         self.rx = FMRx(freq=self.freq,
                         gain=self.gain,
                         outfile=None,
@@ -49,23 +54,18 @@ class QueueStreamer:
 
                 while len(buffer) >= batch_size:
                     batch, buffer = buffer[:batch_size], buffer[batch_size:]
-                    try:
-                        await self.queue.put(batch)
-                    except asyncio.QueueFull:
-                        print("[Streamer] Queue full — dropping batch")
+                    await self.redis.publish(self.channel,batch.tobytes())
+                    
 
         except asyncio.CancelledError:
             pass
         finally:
             self.rx.stop()
             self.rx.wait()
+            if self.redis:
+                await self.redis.close()
             print("[Streamer] Streamer stopped")
 
     async def stop(self):
         self.running = False
-        await self.queue.put(None) # Let consumers know its stopping
         await asyncio.sleep(0.1)
-
-    def get_queue(self):
-        """Return the asyncio queue for consumers."""
-        return self.queue
