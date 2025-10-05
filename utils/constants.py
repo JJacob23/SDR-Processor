@@ -25,8 +25,8 @@ CHUNK_DURATION_S: float = 10.0
 
 #Model hyperparameters
 N_CLASSES: int = 2
-EPOCHS: int = 10,
-LR: float = 1e-3,
+EPOCHS: int = 10
+LR: float = 1e-3
 
 
 # Stream batching
@@ -38,4 +38,5 @@ INVERSE_LABELS: dict[int, str] = {v: k for k, v in LABELS.items()}
 
 # Redis channel names (static strings used across the app)
 CHANNEL_AUDIO: str = "audio_stream"
+CHANNEL_CLASSIFIER: str = "classifier_stream"
 CHANNEL_STATE: str = "state_stream"

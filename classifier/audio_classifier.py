@@ -14,7 +14,7 @@ from utils.constants import (
     SAMPLE_RATE,
     WINDOW_SIZE,
     CHANNEL_AUDIO,
-    CHANNEL_STATE,
+    CHANNEL_CLASSIFIER,
 )
 from utils.config import REDIS_URL
 from utils.audio_utils import (
@@ -23,7 +23,6 @@ from utils.audio_utils import (
     normalize_duration,
     waveform_to_mel_spectrogram,
 )
-from classifier.model import AudioCNN
 from .model import AudioCNN
 
 class Classifier:
@@ -35,7 +34,7 @@ class Classifier:
         self,
         redis_url: str = REDIS_URL,
         audio_channel: str = CHANNEL_AUDIO,
-        state_channel: str = CHANNEL_STATE,
+        state_channel: str = CHANNEL_CLASSIFIER,
         device: Optional[torch.device] = None,
     ) -> None:
         self.redis_url = redis_url

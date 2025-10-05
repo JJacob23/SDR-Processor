@@ -11,7 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 
 from utils.config import REDIS_URL
-from utils.constants import CHANNEL_AUDIO, CHANNEL_STATE
+from utils.constants import CHANNEL_AUDIO, CHANNEL_CLASSIFIER
 
 app = FastAPI()
 app.add_middleware(#Stops browser security error
@@ -23,7 +23,7 @@ app.add_middleware(#Stops browser security error
 )
 
 audio_subscribers: Set[WebSocket] = set()
-state_subscribers: Set[WebSocket] = set()
+classifier_subscribers: Set[WebSocket] = set()
 
 async def broadcast_audio(data: bytes) -> None:
     """Send 100ms audio PCM chunks to all connected audio websocket clients."""
@@ -38,20 +38,20 @@ async def broadcast_audio(data: bytes) -> None:
     for ws in stale:
         audio_subscribers.discard(ws)
 
-async def broadcast_state(payload: dict[str, Any]) -> None:
+async def broadcast_classifier(payload: dict[str, Any]) -> None:
     """Send classifier updates as JSON to all connected classifier websocket clients."""
-    if not state_subscribers:
+    if not classifier_subscribers:
         return
     msg=json.dumps(payload)
     print(payload)
     stale: list[WebSocket] = []
-    for ws in state_subscribers:
+    for ws in classifier_subscribers:
         try:
             await ws.send_text(msg)
         except WebSocketDisconnect:
             stale.append(ws)
     for ws in stale:
-        state_subscribers.discard(ws)
+        classifier_subscribers.discard(ws)
 
 
 async def redis_audio_listener() -> None:
@@ -72,22 +72,22 @@ async def redis_audio_listener() -> None:
         await pubsub.unsubscribe(CHANNEL_AUDIO)
         await redis.close()
 
-async def redis_state_listener() -> None:
-    """Subscribe to the Redis state channel and forward to WebSocket clients."""
+async def redis_classifier_listener() -> None:
+    """Subscribe to the Redis classifier channel and forward to WebSocket clients."""
     redis = aioredis.from_url(REDIS_URL)
     pubsub = redis.pubsub()
-    await pubsub.subscribe(CHANNEL_STATE)
-    print(f"[Controller] Listening on Redis channel: {CHANNEL_STATE}")
+    await pubsub.subscribe(CHANNEL_CLASSIFIER)
+    print(f"[Controller] Listening on Redis channel: {CHANNEL_CLASSIFIER}")
     try:
         async for message in pubsub.listen():
             if message["type"] != "message":
                 continue
             payload = json.loads(message["data"])
-            await broadcast_state(payload)
+            await broadcast_classifier(payload)
     except asyncio.CancelledError:
-        print("[Controller] State listener stopped.")
+        print("[Controller] classifier listener stopped.")
     finally:
-        await pubsub.unsubscribe(CHANNEL_STATE)
+        await pubsub.unsubscribe(CHANNEL_CLASSIFIER)
         await redis.close()
 
 @app.websocket("/ws/audio")
@@ -103,29 +103,29 @@ async def audio_ws(ws: WebSocket) -> None:
         audio_subscribers.remove(ws)
 
 
-@app.websocket("/ws/state")
-async def state_ws(ws: WebSocket) -> None:
+@app.websocket("/ws/classifier")
+async def classifier_ws(ws: WebSocket) -> None:
     await ws.accept()
-    state_subscribers.add(ws)
-    print("[WebSocket] State client connected")
+    classifier_subscribers.add(ws)
+    print("[WebSocket] classifier client connected")
     try:
         while True:
             await ws.receive_text()
     except WebSocketDisconnect:
-        print("[WebSocket] State client disconnected")
-        state_subscribers.remove(ws)
+        print("[WebSocket] classifier client disconnected")
+        classifier_subscribers.remove(ws)
 
 
 @app.on_event("startup")
 async def startup_event():
     print("[Controller] Starting streamer/classifier listeners...")
     app.audio_task = asyncio.create_task(redis_audio_listener())
-    app.state_task = asyncio.create_task(redis_state_listener())
+    app.classifier_task = asyncio.create_task(redis_classifier_listener())
 
 @app.on_event("shutdown")
 async def shutdown_event():
     print("[Controller] Shutting down...")
     app.audio_task.cancel()
-    app.state_task.cancel()
+    app.classifier_task.cancel()
     await asyncio.sleep(0.1)
     print("[Controller] Shutdown complete...")
