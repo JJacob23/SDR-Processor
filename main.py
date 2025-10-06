@@ -50,7 +50,7 @@ async def main() -> None:
     except KeyboardInterrupt:
         print("\n[Main] KeyboardInterrupt, shutting down...")
         await streamer.stop()
-        for task in (streamer_task, classifier_task, fsm_task, monitor_task):
+        for task in (streamer_task, classifier_task, state_machine_task, monitor_task):
             task.cancel()
     finally:
         await asyncio.sleep(0.1)
