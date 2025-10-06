@@ -3,7 +3,7 @@ import asyncio
 import redis.asyncio as aioredis
 import json
 from controller.state_machine import StateMachine
-from classifier.audio_classifier import Classifier
+from classifier.cnn_classifier import Classifier
 from receiver.fm_streamer import Streamer
 from utils.config import DEFAULT_FREQ, DEFAULT_FREQ2, DEFAULT_GAIN, REDIS_URL
 from utils.constants import CHANNEL_STATE
