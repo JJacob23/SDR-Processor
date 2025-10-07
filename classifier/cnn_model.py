@@ -164,8 +164,10 @@ def main() -> None:
     train_loader, val_loader, test_loader = make_dataloaders()
 
     #Evaluate old model on current test set data
+
     model = AudioCNN()
-    model.load_state_dict(torch.load(MODEL_PATH, map_location=device))
+    if os.path.exists(MODEL_PATH):
+        model.load_state_dict(torch.load(MODEL_PATH, map_location=device))
     model.to(device)
     model.eval()
     prev_accuracy = evaluate(model, test_loader, device)
