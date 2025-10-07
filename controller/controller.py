@@ -47,9 +47,10 @@ async def broadcast_state(data: bytes) -> None:
     if not state_subscribers:
         return
     stale: list[WebSocket] = []
+    text = data.decode("utf-8", errors="ignore")
     for ws in state_subscribers:
         try:
-            await ws.send_bytes(data)
+            await ws.send_text(text)
         except WebSocketDisconnect:
             stale.append(ws)
     for ws in stale:
@@ -100,7 +101,7 @@ async def redis_state_listener() -> None:
         async for message in pubsub.listen():
             if message["type"] != "message":
                 continue
-            await broadcast_audio(message["data"])
+            await broadcast_state(message["data"])
     except asyncio.CancelledError:
         print("[Controller] state listener stopped.")
     finally:
@@ -117,7 +118,7 @@ async def redis_classifier_listener() -> None:
         async for message in pubsub.listen():
             if message["type"] != "message":
                 continue
-            payload = json.loads(message["data"])
+            payload = json.loads(message["data"].decode())
             await broadcast_classifier(payload)
     except asyncio.CancelledError:
         print("[Controller] classifier listener stopped.")
@@ -144,9 +145,7 @@ async def classifier_ws(ws: WebSocket) -> None:
     print("[WebSocket] classifier client connected")
     try:
         while True:
-            await asyncio.sleep(1)
-            if ws.application_state == "DISCONNECTED":
-                break
+            await ws.receive_text()
     except WebSocketDisconnect:
         print("[WebSocket] classifier client disconnected")
         classifier_subscribers.remove(ws)

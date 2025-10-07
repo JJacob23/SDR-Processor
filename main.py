@@ -19,7 +19,7 @@ async def monitor_state(streamer: Streamer) -> None:
         async for message in pubsub.listen():
             if message["type"] != "message":
                 continue
-            data = json.loads(message["data"])
+            data = json.loads(message["data"].decode("utf-8"))
             new_freq = data.get("station")
             state = data.get("state")
 
@@ -31,7 +31,7 @@ async def monitor_state(streamer: Streamer) -> None:
         pass
     finally:
         await pubsub.unsubscribe(CHANNEL_STATE)
-        await redis.aclose()
+        await redis.close()
         print("[Main] Stopped monitoring state machine.")
 
 async def main() -> None:

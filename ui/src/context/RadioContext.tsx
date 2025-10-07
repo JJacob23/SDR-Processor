@@ -17,6 +17,7 @@ export type RadioCtx = {
 
 const RadioContext = createContext<RadioCtx | undefined>(undefined);
 
+
 export const useRadio = (): RadioCtx => {
   const ctx = useContext(RadioContext);
   if (!ctx) throw new Error("useRadio must be used within a RadioProvider");
@@ -41,11 +42,12 @@ export const RadioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const wsState = new WebSocket("ws://localhost:8000/ws/state");
     const wsPred = new WebSocket("ws://localhost:8000/ws/classifier");
     const wsAudio = new WebSocket("ws://localhost:8000/ws/audio");
+    wsAudio.binaryType = "arraybuffer"; 
 
 
     wsState.onmessage = (e) => {
       const msg = JSON.parse(e.data);
-      setActiveNode(msg.state);
+      setActiveNode(String(msg.station));
     };
 
     wsPred.onmessage = (e) => {
@@ -56,7 +58,7 @@ export const RadioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     wsAudio.onmessage = (e) => {
       // calculate RMS level
-      const buf = new Float32Array(e.data);
+      const buf = new Float32Array(e.data as ArrayBuffer);
       const rms =
         Math.sqrt(buf.reduce((sum, v) => sum + v * v, 0) / buf.length) || 0;
       setAudioLevel(rms);

@@ -97,7 +97,10 @@ class FMRx(gr.top_block):
 
         #Play audio through speakers
         if play_audio:
-            self.audio = audio.sink(48000, "", True)
-            self.connect(self.deemph, self.audio)
+            try:
+                self.audio = audio.sink(48000, "", True)
+                self.connect(self.deemph, self.audio)
+            except Exception as e:
+                print(f"[FMRx] Warning: Audio sink unavailable: {e}")
 
         self.connect(self.src, self.dcblock, self.wbfm, self.deemph)

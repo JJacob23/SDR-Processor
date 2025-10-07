@@ -66,7 +66,7 @@ def make_dataloaders(
     sample_weights = [class_weights[label] for label in labels]
     sampler = WeightedRandomSampler(sample_weights, num_samples=len(sample_weights), replacement=True)
 
-    train_loader = DataLoader(train_set, batch_size, sampler)
+    train_loader = DataLoader(train_set, batch_size=batch_size, sampler=sampler)
     val_loader   = DataLoader(val_set, batch_size, shuffle=False)
     test_loader  = DataLoader(test_set, batch_size, shuffle=False)
 

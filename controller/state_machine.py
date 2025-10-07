@@ -8,7 +8,10 @@ from utils.config import REDIS_URL, DEFAULT_FREQ, DEFAULT_FREQ2
 class StateMachine:
     """Finite state machine reacting to classifier output."""
 
-    STATES = ["primary", "patience1", "patience2", "secondary"]
+    STATE_PRIMARY = "primary"
+    STATE_SECONDARY = "secondary"
+    STATE_PATIENCE1 = "patience1"
+    STATE_PATIENCE2 = "patience2"
     MUSIC_LABEL = "song"
     AD_LABEL = "ad"
 
@@ -56,27 +59,28 @@ class StateMachine:
     async def handle_label(self, label: str) -> None:
         """State transition logic."""
         prev_state = self.state
+        prev_station = self.current_station
 
+        # Transition rules encoded as (label, current_state) → (new_state, new_station)
+        transitions = {
+            (self.MUSIC_LABEL, self.STATE_PATIENCE1): (self.STATE_PRIMARY, self.station_primary),
+            (self.MUSIC_LABEL, self.STATE_PATIENCE2): (self.STATE_SECONDARY, self.station_secondary),
+            (self.AD_LABEL, self.STATE_PRIMARY): (self.STATE_PATIENCE1, self.station_primary),
+            (self.AD_LABEL, self.STATE_PATIENCE1): (self.STATE_SECONDARY, self.station_secondary),
+            (self.AD_LABEL, self.STATE_SECONDARY): (self.STATE_PATIENCE2, self.station_secondary),
+            (self.AD_LABEL, self.STATE_PATIENCE2): (self.STATE_PRIMARY, self.station_primary),
+        }
 
-        #Maybe define some graph structure for this later.
-        if label == self.MUSIC_LABEL:
-            if self.state == "patience1":
-                self.state = "primary"
-            elif self.state == "patience2":
-                self.state = "secondary"
-        elif label == self.AD_LABEL:
-            if self.state == "primary":
-                self.state = "patience1"
-            elif self.state == "patience1":
-                self.state = "secondary"
-                self.current_station=self.station_secondary
-            elif self.state == "secondary":
-                self.state = "patience2"
-            elif self.state == "patience2":
-                self.state="primary"
-                self.current_station=self.station_primary
+        new_state, new_station = transitions.get(
+            (label, self.state),
+            (self.state, self.current_station)
+        )
 
-        if prev_state != self.state:
+        self.state = new_state
+        self.current_station = new_station
+
+        # Broadcast when either state or station changes
+        if self.state != prev_state or self.current_station != prev_station:
             print(f"[FSM] Transition: {prev_state} → {self.state}")
             await self.broadcast_state()
 
@@ -88,5 +92,5 @@ class StateMachine:
             "state": self.state,
             "station": self.current_station
         })
-        await self.redis.publish(CHANNEL_STATE, payload)
+        await self.redis.publish(self.state_channel, payload)
 
