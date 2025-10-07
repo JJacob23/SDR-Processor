@@ -3,7 +3,7 @@ import os
 
 # Network / services
 REDIS_URL: str = os.getenv("REDIS_URL", "redis://localhost:6379")
-
+REDIS_HOST = os.getenv("REDIS_HOST", "redis")
 # SDR defaults
 DEFAULT_FREQ: float = float(os.getenv("SDR_FREQ", 100.304e6))
 DEFAULT_FREQ2: float = float(os.getenv("SDR_FREQ2", 98.700e6))

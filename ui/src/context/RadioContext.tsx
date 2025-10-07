@@ -57,13 +57,16 @@ export function RadioProvider({ children }: { children: React.ReactNode }) {
   const wsPredRef  = useRef<WebSocket | null>(null);
   const wsAudioRef = useRef<WebSocket | null>(null);
 
+  const API_HOST = import.meta.env.VITE_API_HOST || window.location.hostname;
+  const API_PORT = import.meta.env.VITE_API_PORT || "8000";
+
   // --- helpers
   const url = (path: string) =>
     (location.protocol === "https:" ? "wss://" : "ws://") + location.host + path;
 
   // ----- STATE socket (/ws/state) -----
   useEffect(() => {
-    const ws = new WebSocket(url("/ws/state"));
+    const ws = new WebSocket(`ws://${API_HOST}:${API_PORT}/ws/state`);
     wsStateRef.current = ws;
 
     ws.onopen = () => console.log("[WS state] open");
@@ -92,7 +95,7 @@ export function RadioProvider({ children }: { children: React.ReactNode }) {
 
   // ----- CLASSIFIER socket (/ws/classifier) -----
   useEffect(() => {
-    const ws = new WebSocket(url("/ws/classifier"));
+    const ws = new WebSocket(`ws://${API_HOST}:${API_PORT}/ws/classifier`);
     wsPredRef.current = ws;
 
     ws.onopen = () => console.log("[WS classifier] open");
