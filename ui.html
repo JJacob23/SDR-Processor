@@ -1,55 +1,175 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>SDR Live Stream UI</title>
   <style>
-    body { font-family: monospace; background: black; color: Lime; padding: 1rem; }
-    #log { white-space: pre-line; margin-top: 1rem; }
+    body {
+      background: #0b0b0b;
+      color: #e0e0e0;
+      font-family: monospace;
+      margin: 0;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    h2 {
+      text-align: center;
+      color: #00ff88;
+      margin-bottom: 10px;
+    }
+
+    /* Connection status bar */
+    .status-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 14px;
+      background: #181818;
+      border: 1px solid #333;
+      border-radius: 8px;
+    }
+    .connections {
+      display: flex;
+      gap: 20px;
+      font-size: 15px;
+    }
+    .conn {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #555;
+    }
+    .dot.connected { background: #00ff88; }
+    .dot.disconnected { background: #ff5555; }
+
+    .lag {
+      font-size: 15px;
+      color: #aaa;
+    }
+
+    /* Prediction/state panels */
+    .feed-container {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+    }
+    .panel {
+      flex: 1;
+      background: #111;
+      border: 1px solid #333;
+      border-radius: 8px;
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+    }
+    .panel h3 {
+      color: #00ff88;
+      font-size: 16px;
+      margin: 0 0 8px 0;
+      border-bottom: 1px solid #333;
+      padding-bottom: 4px;
+    }
+    .feed {
+      flex: 1;
+      overflow-y: auto;
+      font-size: 14px;
+      line-height: 1.4;
+    }
+    .entry {
+      margin-bottom: 4px;
+    }
+    .timestamp { color: #777; }
+    .label.song { color: #66ff66; }
+    .label.ad { color: #ff6666; }
+    .state { color: #00ccff; font-weight: bold; }
   </style>
 </head>
 <body>
-  <h2>SDR Live Classifier</h2>
-  <p>Classifier Status: <span id="classifier-status">Connecting...</span></p>
-  <p>Current label: <span id="label">--</span></p>
-  <p>Audio Status: <span id="audio-status">Connecting...</span></p>
-  <p>Lag (target 100ms): <span id="lag">--</span></p>
-  <div id="log"></div>
+  <h2>SDR Processor</h2>
+
+  <div class="status-bar">
+    <div class="connections">
+      <div class="conn"><div id="dot-audio" class="dot disconnected"></div>Audio</div>
+      <div class="conn"><div id="dot-class" class="dot disconnected"></div>Classifier</div>
+      <div class="conn"><div id="dot-state" class="dot disconnected"></div>State</div>
+    </div>
+    <div class="lag">Lag: <span id="lag">--</span> ms</div>
+  </div>
+
+  <div class="feed-container">
+    <div class="panel">
+      <h3>Predictions</h3>
+      <div id="pred-feed" class="feed"></div>
+    </div>
+    <div class="panel">
+      <h3>State Changes</h3>
+      <div id="state-feed" class="feed"></div>
+    </div>
+  </div>
 
   <script>
-    const labelEl = document.getElementById('label');
-    const classifierStatusEl = document.getElementById('classifier-status');
-    const audioStatusEl = document.getElementById('audio-status');
-    const logEl = document.getElementById('log');
-    const lagEl = document.getElementById('lag');
+    const lagEl = document.getElementById("lag");
+    let lastAudioTime = performance.now();
 
-    const classifierSocket = new WebSocket("ws://localhost:8000/ws/classifier");
-    classifierSocket.onopen = () => { classifierStatusEl.textContent = "Connected"; };
-    classifierSocket.onclose = () => { classifierStatusEl.textContent = "Disconnected"; };
+    function updateLag() {
+      const now = performance.now();
+      const diff = now - lastAudioTime;
+      lagEl.textContent = diff.toFixed(0);
+      requestAnimationFrame(updateLag);
+    }
+    requestAnimationFrame(updateLag);
 
-    classifierSocket.onmessage = (event) => {
-      const msg = JSON.parse(event.data);
-      labelEl.textContent = msg.label + "  (p=" + msg.probs.map(p => p.toFixed(3)).join(", ") + ")";
-      logEl.textContent = `[${new Date().toLocaleTimeString()}] ${msg.label}\n` + logEl.textContent;
+    const setConn = (id, connected) => {
+      const el = document.getElementById(id);
+      el.classList.toggle("connected", connected);
+      el.classList.toggle("disconnected", !connected);
     };
 
-    const audioSocket = new WebSocket("ws://localhost:8000/ws/audio");
-    audioSocket.onopen = () => { audioStatusEl.textContent = "Connected"; };
-    audioSocket.onclose = () => { audioStatusEl.textContent = "Disconnected"; };
-    audioSocket.binaryType = "arraybuffer";
+    // Audio WS
+    const wsAudio = new WebSocket("ws://localhost:8000/ws/audio");
+    wsAudio.binaryType = "arraybuffer";
+    wsAudio.onopen = () => setConn("dot-audio", true);
+    wsAudio.onclose = () => setConn("dot-audio", false);
+    wsAudio.onmessage = () => { lastAudioTime = performance.now(); };
 
-    let lastTime = performance.now();
-    let intervals = [];
-    audioSocket.onmessage = (event) => {
-      const now = performance.now();
-      const diff = now - lastTime;
-      lastTime = now;
-      intervals.push(diff);
-      if (intervals.length > 100) intervals.shift(); // keep last 10 seconds of data
-      const avg = intervals.reduce((a, b) => a + b, 0) / intervals.length;
-      lagEl.textContent = `${avg.toFixed(1)} ms avg interval`;
+    // Classifier WS
+    const wsClass = new WebSocket("ws://localhost:8000/ws/classifier");
+    wsClass.onopen = () => setConn("dot-class", true);
+    wsClass.onclose = () => setConn("dot-class", false);
+    wsClass.onmessage = (event) => {
+      const msg = JSON.parse(event.data);
+      const { label, probs } = msg;
+      const conf = probs ? Math.max(...probs) : null;
+      const time = new Date().toLocaleTimeString();
+      const entry = document.createElement("div");
+      entry.className = "entry";
+      entry.innerHTML = `<span class="timestamp">[${time}]</span> → <span class="label ${label}">${label}</span>${conf ? ` (${(conf*100).toFixed(1)}%)` : ""}`;
+      const feed = document.getElementById("pred-feed");
+      feed.appendChild(entry);
+      feed.scrollTop = feed.scrollHeight;
+    };
+
+    // State WS
+    const wsState = new WebSocket("ws://localhost:8000/ws/state");
+    wsState.onopen = () => setConn("dot-state", true);
+    wsState.onclose = () => setConn("dot-state", false);
+    wsState.onmessage = (event) => {
+      const msg = JSON.parse(event.data);
+      const { state, station } = msg;
+      const time = new Date().toLocaleTimeString();
+      const entry = document.createElement("div");
+      entry.className = "entry";
+      entry.innerHTML = `<span class="timestamp">[${time}]</span> → <span class="state">${state}</span> @ ${(station/1e6).toFixed(3)} MHz`;
+      const feed = document.getElementById("state-feed");
+      feed.appendChild(entry);
+      feed.scrollTop = feed.scrollHeight;
     };
   </script>
 </body>
 </html>
-
