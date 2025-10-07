@@ -2,6 +2,21 @@
 @tailwind components;
 @tailwind utilities;
 
-body {
-  @apply bg-background text-green-400 font-mono;
+@theme {
+  --color-bg: #1a1a1a;          /* main background gray */
+  --color-surface: #242424;     /* window / panel gray */
+  --color-text: #e5e5e5;        /* light gray text */
+  --color-subtle: #9ca3af;      /* muted / secondary text */
+  --color-accent: #39ff14;      /* neon green highlight */
+  --color-border: #9ca3af;
+  --color-hover: #2e2e2e;
 }
+@layer base {
+  html, body, #root {
+    @apply bg-bg text-text h-full overflow-hidden;
+  }
+  * {
+    @apply transition-colors duration-200;
+  }
+}
+

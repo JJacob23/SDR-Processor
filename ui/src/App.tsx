@@ -1,4 +1,3 @@
-import React from "react";
 import StatusBar from "./components/StatusBar";
 import AudioVisualizer from "./components/AudioVisualizer";
 import StateMachine from "./components/StateMachine";
@@ -7,11 +6,10 @@ import { RadioProvider } from "./context/RadioContext";
 export default function App() {
   return (
     <RadioProvider>
-      <div className="flex flex-col items-center justify-center min-h-screen w-screen bg-background text-gray-100">
-        {/* ─────── Main Card ─────── */}
-        <div className="flex flex-col w-[90vw] max-w-6xl h-[80vh] border border-gray-700 rounded-2xl shadow-xl overflow-hidden bg-black/70">
-        <div className="text-3xl font-bold mb-04 tracking-wide text-green-400 border-b border-gray-700">
-          SDR Processor Dashboard
+ <div className="flex flex-col items-center justify-center min-h-screen w-screen bg-bg text-text">
+  <div className="flex flex-col w-[90vw] max-w-6xl h-[80vh] border border-border rounded-2xl shadow-xl overflow-hidden bg-surface">
+    <div className="text-3xl font-bold mb-4 tracking-wide text-accent border-b border-border px-6 py-2">
+               SDR Processor Dashboard
         </div>
           {/* Two-column content */}
           <div className="flex flex-1">

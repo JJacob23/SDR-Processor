@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from "react";
+import { useEffect, useRef } from "react";
 import WaveSurfer from "wavesurfer.js";
 import { useRadio } from "../context/RadioContext";
 
@@ -7,12 +7,13 @@ import { useRadio } from "../context/RadioContext";
  * Plays and visualizes live audio chunks from RadioContext.
  */
 export default function AudioVisualizer() {
-  const { audioBuffer, audioLevel, isMuted } = useRadio();
+  // now only using audioLevel + isMuted (no undefined audioBuffer)
+  const { audioLevel, isMuted } = useRadio();
   const containerRef = useRef<HTMLDivElement>(null);
   const wavesurferRef = useRef<WaveSurfer | null>(null);
   const audioCtxRef = useRef<AudioContext | null>(null);
 
-  // one-time WaveSurfer + AudioContext setup
+  /* ─────── One-time WaveSurfer setup ─────── */
   useEffect(() => {
     if (!containerRef.current) return;
 
@@ -28,8 +29,18 @@ export default function AudioVisualizer() {
       barGap: 1,
       barRadius: 2,
     });
+
     wavesurferRef.current = wave;
     audioCtxRef.current = new AudioContext();
+
+    // Resume context after user gesture (Firefox autoplay block)
+    const resumeAudio = () => {
+      if (audioCtxRef.current?.state === "suspended") {
+        audioCtxRef.current.resume();
+      }
+      window.removeEventListener("click", resumeAudio);
+    };
+    window.addEventListener("click", resumeAudio);
 
     return () => {
       wave.destroy();
@@ -37,29 +48,7 @@ export default function AudioVisualizer() {
     };
   }, []);
 
-
-    useEffect(() => {
-    if (!audioBuffer || !audioCtxRef.current || !wavesurferRef.current) return;
-    if (isMuted) return; // 👈 don't play if muted
-
-    const audioCtx = audioCtxRef.current;
-    const buf = audioCtx.createBuffer(1, audioBuffer.length, 48_000);
-    buf.copyToChannel(audioBuffer as unknown as Float32Array<ArrayBuffer>, 0);
-
-
-
-    const src = audioCtx.createBufferSource();
-    src.buffer = buf;
-    src.connect(audioCtx.destination);
-    src.start();
-
-    bufferToWav(buf).then((blob) => {
-        const url = URL.createObjectURL(blob);
-        wavesurferRef.current!.load(url);
-    });
-    }, [audioBuffer, isMuted]);
-
-  // optional: pulse color with RMS
+  /* ─────── Optional: animate color with RMS level ─────── */
   useEffect(() => {
     const wave = wavesurferRef.current;
     if (!wave) return;
@@ -74,12 +63,14 @@ export default function AudioVisualizer() {
   return (
     <div
       ref={containerRef}
-      className="w-full h-40 bg-black/50 border border-gray-700 rounded-lg"
-    ></div>
+      className={`w-full h-40 border border-gray-700 rounded-lg ${
+        isMuted ? "bg-gray-800/70" : "bg-black/50"
+      }`}
+    />
   );
 }
 
-/* ---------- helper: AudioBuffer → WAV blob ---------- */
+/* ---------- helper: AudioBuffer → WAV blob ---------- 
 async function bufferToWav(buffer: AudioBuffer): Promise<Blob> {
   const numOfChan = buffer.numberOfChannels;
   const length = buffer.length * numOfChan * 2 + 44;
@@ -107,7 +98,7 @@ async function bufferToWav(buffer: AudioBuffer): Promise<Blob> {
   for (let i = 0; i < numOfChan; i++) channels.push(buffer.getChannelData(i));
   for (let i = 0; i < buffer.length; i++)
     for (let c = 0; c < numOfChan; c++) {
-      let sample = Math.max(-1, Math.min(1, channels[c][i]));
+      const sample = Math.max(-1, Math.min(1, channels[c][i]));
       view.setInt16(offset, sample < 0 ? sample * 0x8000 : sample * 0x7fff, true);
       offset += 2;
     }
@@ -118,3 +109,4 @@ async function bufferToWav(buffer: AudioBuffer): Promise<Blob> {
 function writeUTFBytes(view: DataView, offset: number, str: string) {
   for (let i = 0; i < str.length; i++) view.setUint8(offset + i, str.charCodeAt(i));
 }
+*/

@@ -1,7 +1,10 @@
-import React, { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRadio } from "../context/RadioContext";
 import { Volume2, VolumeX } from "lucide-react";
 
+/**
+ * StatusBar — displays classifier state, confidence, audio lag, and mute toggle.
+ */
 export default function StatusBar() {
   const {
     prediction,
@@ -15,14 +18,14 @@ export default function StatusBar() {
   const [lag, setLag] = useState<number>(0);
   const lastTimeRef = useRef<number>(performance.now());
 
-  // Local lag measurement (time between audio updates)
+  // Measure time between audio level updates to estimate lag
   useEffect(() => {
     const now = performance.now();
     const diff = now - lastTimeRef.current;
     lastTimeRef.current = now;
 
     // Smooth rolling average to reduce jitter
-    setLag((prev) => prev * 0.8 + diff * 0.2);
+    setLag((prev: number) => prev * 0.8 + diff * 0.2);
   }, [audioLevel]);
 
   return (
@@ -30,7 +33,7 @@ export default function StatusBar() {
       {/* Left: Station */}
       <div>
         Station:&nbsp;
-        <span className="text-green-400">{activeNode}</span>
+        <span className="text-green-400">{activeNode ?? "--"}</span>
       </div>
 
       {/* Center: Last prediction */}
@@ -54,7 +57,7 @@ export default function StatusBar() {
         </div>
 
         <button
-          onClick={() => setIsMuted((prev) => !prev)}
+          onClick={() => setIsMuted((prev: boolean) => !prev)}
           className={`ml-2 w-28 px-3 py-1 border border-gray-600 rounded-md hover:bg-gray-800 transition flex items-center justify-center gap-2 ${
             isMuted ? "text-red-400" : "text-green-400"
           }`}
@@ -73,3 +76,4 @@ export default function StatusBar() {
     </div>
   );
 }
+

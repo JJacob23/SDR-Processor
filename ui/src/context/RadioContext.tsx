@@ -1,85 +1,71 @@
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React, { createContext, useContext, useEffect, useRef, useState } from "react";
 
-interface RadioContextType {
-  activeNode: string;
-  activeEdge: string | null;
-  lastEvent: "Ad" | "Song" | null;
+export type RadioCtx = {
+  // classifier data
   prediction: string | null;
   confidence: number | null;
-  audioLevel: number;  // e.g. RMS or normalized
-  audioBuffer: Float32Array | null;
+
+  // FSM visualization
+  activeNode: string | null;
+  activeEdge: string | null;
+
+  // audio feedback
+  audioLevel: number;
   isMuted: boolean;
   setIsMuted: React.Dispatch<React.SetStateAction<boolean>>;
-}
+};
 
-const RadioContext = createContext<RadioContextType>({
-  activeNode: "primary",
-  activeEdge: null,
-  lastEvent: null,
-  prediction: null,
-  confidence: null,
-  audioLevel: 0,
-  audioBuffer: null,
-  isMuted: false,
-  setIsMuted: () => {},
-});
+const RadioContext = createContext<RadioCtx | undefined>(undefined);
 
-export const useRadio = () => useContext(RadioContext);
+export const useRadio = (): RadioCtx => {
+  const ctx = useContext(RadioContext);
+  if (!ctx) throw new Error("useRadio must be used within a RadioProvider");
+  return ctx;
+};
 
 export const RadioProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [activeNode, setActiveNode] = useState<string>("primary");
-  const [activeEdge, setActiveEdge] = useState<string | null>(null);
-  const [lastEvent, setLastEvent] = useState<"Ad" | "Song" | null>(null);
   const [prediction, setPrediction] = useState<string | null>(null);
   const [confidence, setConfidence] = useState<number | null>(null);
+  const [activeNode, setActiveNode] = useState<string | null>(null);
+  const [activeEdge, _setActiveEdge] = useState<string | null>(null);
   const [audioLevel, setAudioLevel] = useState<number>(0);
-  const [audioBuffer, setAudioBuffer] = useState<Float32Array | null>(null);
-  const [isMuted, setIsMuted] = useState<boolean>(false); 
+  const [isMuted, setIsMuted] = useState(false);
+
+  const wsStateRef = useRef<WebSocket | null>(null);
+  const wsPredRef = useRef<WebSocket | null>(null);
+  const wsAudioRef = useRef<WebSocket | null>(null);
 
   useEffect(() => {
-    // State / FSM socket
+    if (wsStateRef.current || wsPredRef.current || wsAudioRef.current) return;
+
     const wsState = new WebSocket("ws://localhost:8000/ws/state");
-    wsState.onmessage = (ev) => {
-      try {
-        const msg = JSON.parse(ev.data);
-        if (msg.event) setLastEvent(msg.event);
-        if (msg.node) setActiveNode(msg.node);
-        if (msg.edge) setActiveEdge(msg.edge);
-      } catch (err) {
-        console.error("[wsState] parse error:", err);
-      }
-    };
-    wsState.onclose = () => console.log("[wsState] closed");
-
-    // Prediction socket
-    const wsPred = new WebSocket("ws://localhost:8000/ws/prediction");
-    wsPred.onmessage = (ev) => {
-      try {
-        const msg = JSON.parse(ev.data);
-        if (msg.label) setPrediction(msg.label);
-        if (typeof msg.confidence === "number") setConfidence(msg.confidence);
-      } catch (err) {
-        console.error("[wsPred] parse error:", err);
-      }
-    };
-    wsPred.onclose = () => console.log("[wsPred] closed");
-
-    // Audio socket
+    const wsPred = new WebSocket("ws://localhost:8000/ws/classifier");
     const wsAudio = new WebSocket("ws://localhost:8000/ws/audio");
-    wsAudio.binaryType = "arraybuffer";
-    wsAudio.onmessage = (ev) => {
-      try {
-        const float32 = new Float32Array(ev.data);
-        setAudioBuffer(float32);
-        const rms = Math.sqrt(float32.reduce((s, v) => s + v * v, 0) / float32.length);
-        setAudioLevel(rms);
-      } catch (err) {
-        console.error("[wsAudio] parse error:", err);
-      }
-    };
-    wsAudio.onclose = () => console.log("[wsAudio] closed");
 
-    // Clean up all sockets on unmount
+
+    wsState.onmessage = (e) => {
+      const msg = JSON.parse(e.data);
+      setActiveNode(msg.state);
+    };
+
+    wsPred.onmessage = (e) => {
+      const msg = JSON.parse(e.data);
+      setPrediction(msg.label);
+      if (msg.probs) setConfidence(Math.max(...msg.probs));
+    };
+
+    wsAudio.onmessage = (e) => {
+      // calculate RMS level
+      const buf = new Float32Array(e.data);
+      const rms =
+        Math.sqrt(buf.reduce((sum, v) => sum + v * v, 0) / buf.length) || 0;
+      setAudioLevel(rms);
+    };
+
+    wsStateRef.current = wsState;
+    wsPredRef.current = wsPred;
+    wsAudioRef.current = wsAudio;
+
     return () => {
       wsState.close();
       wsPred.close();
@@ -90,13 +76,11 @@ export const RadioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   return (
     <RadioContext.Provider
       value={{
-        activeNode,
-        activeEdge,
-        lastEvent,
         prediction,
         confidence,
+        activeNode,
+        activeEdge,
         audioLevel,
-        audioBuffer,
         isMuted,
         setIsMuted,
       }}
@@ -105,3 +89,4 @@ export const RadioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     </RadioContext.Provider>
   );
 };
+
