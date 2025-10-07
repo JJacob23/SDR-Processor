@@ -1,5 +1,6 @@
 from __future__ import annotations
 import asyncio
+import argparse
 import redis.asyncio as aioredis
 import json
 from controller.state_machine import StateMachine
@@ -34,27 +35,48 @@ async def monitor_state(streamer: Streamer) -> None:
         await redis.close()
         print("[Main] Stopped monitoring state machine.")
 
-async def main() -> None:
-    streamer = Streamer(freq=DEFAULT_FREQ, gain=float(DEFAULT_GAIN), play_audio=True)
-    classifier = Classifier()
-    #state_machine = StateMachine(station_primary=DEFAULT_FREQ2, station_secondary=DEFAULT_FREQ)
-    state_machine = StateMachine(station_primary=DEFAULT_FREQ, station_secondary=DEFAULT_FREQ2)
 
+async def main(args) -> None:
+    # Instantiate components with CLI args
+    streamer = Streamer(
+        freq=args.primary,
+        gain=float(DEFAULT_GAIN),
+        play_audio=not args.no_audio
+    )
+    classifier = Classifier()
+    state_machine = StateMachine(
+        station_primary=args.primary,
+        station_secondary=args.secondary
+    )
+
+    # Tasks
     streamer_task = asyncio.create_task(streamer.start())
     classifier_task = asyncio.create_task(classifier.run())
     state_machine_task = asyncio.create_task(state_machine.run())
     monitor_task = asyncio.create_task(monitor_state(streamer))
 
     try:
-        await asyncio.gather(streamer_task,  classifier_task, state_machine_task, monitor_task)
+        await asyncio.gather(
+            streamer_task,
+            classifier_task,
+            state_machine_task,
+            monitor_task
+        )
     except KeyboardInterrupt:
         print("\n[Main] KeyboardInterrupt, shutting down...")
         await streamer.stop()
-        for task in (streamer_task, classifier_task, state_machine_task, monitor_task):
-            task.cancel()
+        for t in (streamer_task, classifier_task, state_machine_task, monitor_task):
+            t.cancel()
     finally:
         await asyncio.sleep(0.1)
         print("[Main] Cleanup complete.")
 
+
 if __name__ == "__main__":
-    asyncio.run(main())
+    parser = argparse.ArgumentParser(description="SDR Processor pipeline")
+    parser.add_argument("--no-audio", action="store_true", help="Run without playing audio")
+    parser.add_argument("--primary", type=float, default=DEFAULT_FREQ, help="Primary station frequency (Hz)")
+    parser.add_argument("--secondary", type=float, default=DEFAULT_FREQ2, help="Secondary station frequency (Hz)")
+    args = parser.parse_args()
+
+    asyncio.run(main(args))

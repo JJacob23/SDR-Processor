@@ -2,12 +2,9 @@
 set -e
 
 echo "Starting SDR-Processor"
-#Breaks when already activated
-#echo "Activating Conda environment..."
-#conda activate radio
 
-echo "Starting Redis Server..."
-if ! pgrep -x "redis-server" > /dev/null; then
+# Start Redis if not running
+if ! pgrep -x "redis-server" >/dev/null; then
   echo "Starting Redis..."
   redis-server --daemonize yes
 else
@@ -20,7 +17,9 @@ FASTAPI_PID=$!
 
 # --- 3. Start main pipeline ---
 echo "Starting streamer/classifier main..."
-python -m main
+
+# Forward any CLI args (e.g., --no-audio, --primary, --secondary)
+python -m main "$@"
 
 # --- 4. Clean up ---
 echo "Shutting down FastAPI controller..."
