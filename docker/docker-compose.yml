@@ -1,0 +1,48 @@
+version: "3.9"
+
+services:
+  redis:
+    image: redis:7
+    ports:
+      - "6379:6379"
+
+  receiver:
+    build:
+      context: ..
+      dockerfile: receiver/Dockerfile
+    environment:
+      - RAW_SAMPLE_RATE=48000
+      - REDIS_HOST=redis
+    devices:
+      - /dev/bus/usb:/dev/bus/usb
+    volumes:
+      - ../data:/app/data
+      - ../models:/app/models
+    depends_on:
+      - redis
+
+  controller:
+    build:
+      context: ..
+      dockerfile: controller/Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - REDIS_HOST=redis
+    volumes:
+      - ../models:/app/models
+    depends_on:
+      - redis
+
+  ui:
+    build:
+      context: ../ui
+      dockerfile: Dockerfile
+    ports:
+      - "5173:5173"
+    depends_on:
+      - controller
+    environment:
+      - VITE_API_HOST=controller
+      - VITE_API_PORT=8000
+
