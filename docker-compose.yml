@@ -8,41 +8,42 @@ services:
 
   receiver:
     build:
-      context: ..
+      context: .
       dockerfile: receiver/Dockerfile
     environment:
       - RAW_SAMPLE_RATE=48000
-      - REDIS_HOST=redis
-    devices:
-      - /dev/bus/usb:/dev/bus/usb
+      - REDIS_URL=redis://redis:6379
+
     volumes:
-      - ../data:/app/data
-      - ../models:/app/models
+      - ./data:/app/data
+      - ./models:/app/models:ro
     depends_on:
       - redis
+    profiles: ["hardware"]
+    devices:
+      - /dev/bus/usb:/dev/bus/usb
 
   controller:
     build:
-      context: ..
+      context: .
       dockerfile: controller/Dockerfile
     ports:
       - "8000:8000"
     environment:
-      - REDIS_HOST=redis
+      - REDIS_URL=redis://redis:6379
     volumes:
-      - ../models:/app/models
+      - ./models:/app/models:ro
     depends_on:
       - redis
 
   ui:
     build:
-      context: ../ui
+      context: ./ui
       dockerfile: Dockerfile
     ports:
       - "5173:5173"
-    depends_on:
-      - controller
     environment:
       - VITE_API_HOST=controller
       - VITE_API_PORT=8000
-
+    depends_on:
+      - controller

@@ -3,6 +3,10 @@ from __future__ import annotations
 import asyncio
 import json
 from typing import Any, Set
+from fastapi import FastAPI
+from fastapi.responses import FileResponse, RedirectResponse
+from fastapi.staticfiles import StaticFiles
+from pathlib import Path
 
 import numpy as np
 import redis.asyncio as aioredis
@@ -162,10 +166,18 @@ async def state_ws(ws: WebSocket) -> None:
         print("[WebSocket] state client disconnected")
         state_subscribers.remove(ws)
 
-app.mount("/app", StaticFiles(directory="ui/dist", html=True), name="static")
+
+REACT_DIR = Path("ui/dist")
+app.mount("/app", StaticFiles(directory=REACT_DIR, html=True), name="react")
+@app.get("/app/{_:path}")
+async def app_spa():
+    return FileResponse(REACT_DIR / "index.html")
+@app.get("/ui")
+async def simple_ui():
+    return FileResponse("/app/static/ui.html")
 @app.get("/")
-async def root_redirect():
-    return RedirectResponse(url="/app")
+async def root():
+    return RedirectResponse("/app")
 
 @app.middleware("http")
 async def catch_exceptions(request, call_next):

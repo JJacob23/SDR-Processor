@@ -6,6 +6,7 @@ import json
 from controller.state_machine import StateMachine
 from classifier.cnn_classifier import Classifier
 from receiver.fm_streamer import Streamer
+from receiver.fm_streamer_sim import StreamerSim
 from utils.config import DEFAULT_FREQ, DEFAULT_FREQ2, DEFAULT_GAIN, REDIS_URL
 from utils.constants import CHANNEL_STATE
 
@@ -35,14 +36,26 @@ async def monitor_state(streamer: Streamer) -> None:
         await redis.close()
         print("[Main] Stopped monitoring state machine.")
 
-
 async def main(args) -> None:
     # Instantiate components with CLI args
-    streamer = Streamer(
-        freq=args.primary,
-        gain=float(DEFAULT_GAIN),
-        play_audio=not args.no_audio
-    )
+    use_hardware = getattr(args, "hardware", True)
+    if use_hardware:
+        streamer = Streamer(
+            freq=float(args.primary),
+            gain=float(DEFAULT_GAIN),
+            play_audio=not args.no_audio,
+        )
+    else:
+        station_files = {
+            float(args.primary):   "data/wav/98_7_000.wav",
+            float(args.secondary): "data/wav/100_3_000.wav",
+        }
+        streamer = StreamerSim(
+            station_files=station_files,
+            init_freq=float(args.primary),
+            redis_url=REDIS_URL,
+        )        
+
     classifier = Classifier()
     state_machine = StateMachine(
         station_primary=args.primary,
@@ -77,6 +90,7 @@ if __name__ == "__main__":
     parser.add_argument("--no-audio", action="store_true", help="Run without playing audio")
     parser.add_argument("--primary", type=float, default=DEFAULT_FREQ, help="Primary station frequency (Hz)")
     parser.add_argument("--secondary", type=float, default=DEFAULT_FREQ2, help="Secondary station frequency (Hz)")
+    parser.add_argument("--hardware", action="store_true", help="Use hardware instead of WAV simulator")
     args = parser.parse_args()
 
     asyncio.run(main(args))

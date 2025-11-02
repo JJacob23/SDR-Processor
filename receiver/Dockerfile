@@ -12,7 +12,9 @@ COPY controller/ controller/
 COPY classifier/ classifier/
 COPY main.py .
 
-RUN pip install --no-cache-dir redis numpy soundfile fastapi torch torchaudio
+RUN pip install torch
+RUN pip install torchaudio
+RUN pip install --no-cache-dir redis numpy soundfile fastapi
 ENV PYTHONPATH=/app
 ENV RAW_SAMPLE_RATE=48000 REDIS_HOST=redis
 
